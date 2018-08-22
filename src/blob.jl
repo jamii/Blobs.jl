@@ -41,7 +41,7 @@ function Base.:-(blob1::Blob, blob2::Blob)
     getfield(blob1, :offset) - getfield(blob2, :offset)
 end
 
-@inline function boundscheck(blob::Blob{T}) where T
+Base.@propagate_inbounds function boundscheck(blob::Blob{T}) where T
     @boundscheck begin
         if !(0 <= getfield(blob, :offset) - getfield(blob, :base) <= getfield(blob, :limit) - self_size(T))
             throw(BoundsError(blob))
