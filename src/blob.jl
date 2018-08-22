@@ -3,13 +3,17 @@ A pointer to a `T` stored inside a Blob.
 """
 struct Blob{T}
     base::Ptr{Nothing}
-    offset::Int64
+    offset::Ptr{Nothing}
     limit::Int64
 
-    function Blob{T}(base::Ptr{Nothing}, offset::Int64, limit::Int64) where {T}
+    function Blob{T}(base::Ptr{Nothing}, offset::Ptr{Nothing}, limit::Int64) where {T}
         @assert isbitstype(T)
         new(base, offset, limit)
     end
+end
+
+function Blob{T}(base::Ptr{Nothing}, limit::Int64) where {T}
+    Blob{T}(base, base, limit)
 end
 
 function Blob{T}(blob::Blob) where T
@@ -21,11 +25,15 @@ function assert_same_allocation(blob1::Blob, blob2::Blob)
 end
 
 function Base.pointer(blob::Blob{T}) where T
-    convert(Ptr{T}, getfield(blob, :base) + getfield(blob, :offset))
+    convert(Ptr{T}, getfield(blob, :offset))
 end
 
 function Base.:+(blob::Blob{T}, offset::Integer) where T
     Blob{T}(getfield(blob, :base), getfield(blob, :offset) + offset, getfield(blob, :limit))
+end
+
+function Base.:-(blob::Blob{T}, offset::Integer) where T
+    Blob{T}(getfield(blob, :base), getfield(blob, :offset) - offset, getfield(blob, :limit))
 end
 
 function Base.:-(blob1::Blob, blob2::Blob)
@@ -35,7 +43,7 @@ end
 
 @inline function boundscheck(blob::Blob{T}) where T
     @boundscheck begin
-        if (getfield(blob, :offset) < 0) || (getfield(blob, :offset) + self_size(T) > getfield(blob, :limit))
+        if !(0 <= getfield(blob, :offset) - getfield(blob, :base) <= getfield(blob, :limit) - self_size(T))
             throw(BoundsError(blob))
         end
     end
@@ -153,12 +161,12 @@ function self_size(::Type{Blob{T}}) where T
 end
 
 @inline function Base.unsafe_load(blob::Blob{Blob{T}}) where {T}
-    offset = unsafe_load(Blob{Int64}(blob))
+    offset = unsafe_load(Blob{UInt64}(blob))
     Blob{T}(getfield(blob, :base), getfield(blob, :offset) + offset, getfield(blob, :limit))
 end
 
 @inline function Base.unsafe_store!(blob::Blob{Blob{T}}, value::Blob{T}) where {T}
     assert_same_allocation(blob, value)
     offset = getfield(value, :offset) - getfield(blob, :offset)
-    unsafe_store!(Blob{Int64}(blob), offset)
+    unsafe_store!(Blob{UInt64}(blob), offset)
 end

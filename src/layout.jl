@@ -78,7 +78,7 @@ Allocate an uninitialized `Blob{T}`.
 """
 function malloc(::Type{T}, args...)::Blob{T} where T
     size = self_size(T) + child_size(T, args...)
-    Blob{T}(Libc.malloc(size), 0, size)
+    Blob{T}(Libc.malloc(size), size)
 end
 
 """
@@ -88,7 +88,7 @@ Allocate and initialize a new `Blob{T}`.
 """
 function malloc_and_init(::Type{T}, args...)::Blob{T} where T
     size = self_size(T) + child_size(T, args...)
-    blob = Blob{T}(Libc.malloc(size), 0, size)
+    blob = Blob{T}(Libc.malloc(size), size)
     used = init(blob, args...)
     @assert used - blob == size
     blob
